@@ -1,7 +1,7 @@
 /** 邮件详情/阅读页 */
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Button, Space, Spin, Divider, Typography } from 'antd'
+import { Button, Space, Spin, Divider, Typography, Alert } from 'antd'
 import { ArrowLeftOutlined, SendOutlined } from '@ant-design/icons'
 import { useMailStore } from '../stores/mailStore'
 import { useAuthStore } from '../stores/authStore'
@@ -22,16 +22,55 @@ export default function MailDetailPage() {
   const clearCurrentMail = useMailStore((s) => s.clearCurrentMail)
   const username = useAuthStore((s) => s.username)
   const domain = useAuthStore((s) => s.domain)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (id) readMail(id)
+    if (id) {
+      setError(null)
+      readMail(id).catch((err) => {
+        console.error('Failed to load mail:', err)
+        setError(err.message || '加载邮件失败')
+      })
+    }
     return () => clearCurrentMail()
   }, [id, readMail, clearCurrentMail])
 
-  if (loading || !mail) {
+  if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: 60 }}>
         <Spin size="large" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div>
+        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)} style={{ marginBottom: 16 }}>
+          返回
+        </Button>
+        <Alert
+          message="加载失败"
+          description={error}
+          type="error"
+          showIcon
+        />
+      </div>
+    )
+  }
+
+  if (!mail) {
+    return (
+      <div>
+        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)} style={{ marginBottom: 16 }}>
+          返回
+        </Button>
+        <Alert
+          message="邮件不存在"
+          description="无法找到该邮件或您无权访问"
+          type="warning"
+          showIcon
+        />
       </div>
     )
   }

@@ -196,8 +196,8 @@ class MailService:
 
         # 查询收件箱
         rows = await self.db.fetchall(
-            """SELECT e.email_id, e.from_user, e.subject, e.created_at, e.sent_at,
-                      er.is_read, er.is_recalled
+            """SELECT e.email_id, e.from_user, e.to_users, e.subject, e.created_at, e.sent_at,
+                      e.status, e.is_spam, er.is_read, er.is_recalled
                FROM email_recipients er
                JOIN emails e ON er.email_id = e.email_id
                WHERE er.recipient = ? AND er.is_recalled = 0 AND e.status = 'SENT'
@@ -206,7 +206,18 @@ class MailService:
             (recipient, page_size, offset)
         )
 
-        emails = [dict(row) for row in rows] if rows else []
+        emails = []
+        for row in (rows or []):
+            d = dict(row)
+            # 解析 to_users JSON 字段
+            if d.get("to_users"):
+                try:
+                    d["to_users"] = json.loads(d["to_users"])
+                except (json.JSONDecodeError, TypeError):
+                    d["to_users"] = []
+            else:
+                d["to_users"] = []
+            emails.append(d)
 
         # 统计总数
         count_row = await self.db.fetchone(
@@ -258,14 +269,38 @@ class MailService:
         )
         await self.db.commit()
 
+        # 查询用户的已读状态
+        recipient_record = await self.db.fetchone(
+            "SELECT is_read FROM email_recipients WHERE email_id = ? AND recipient = ?",
+            (email_id, recipient)
+        )
+        is_read = recipient_record["is_read"] if recipient_record else 0
+
+        # 解析 actions 字段
+        actions_raw = email_dict.get("actions")
+        if actions_raw:
+            try:
+                actions = json.loads(actions_raw)
+            except (json.JSONDecodeError, TypeError):
+                actions = None
+        else:
+            actions = None
+
         return build_response(request_id, StatusCode.OK, "邮件详情", {
             "email_id": email_dict["email_id"],
-            "from": email_dict["from_user"],
-            "to": to_users,
+            "from_user": email_dict["from_user"],
+            "to_users": to_users,
             "subject": email_dict["subject"],
             "body": email_dict["body"],
             "sent_at": email_dict["sent_at"],
-            "status": email_dict["status"]
+            "created_at": email_dict.get("created_at", email_dict["sent_at"]),
+            "status": email_dict["status"],
+            "is_read": is_read,
+            "is_spam": email_dict.get("is_spam", 0),
+            "spam_score": email_dict.get("spam_score"),
+            "category": email_dict.get("category"),
+            "actions": actions,
+            "recall_signature": email_dict.get("recall_signature")
         })
 
     async def handle_list_sent(self, msg: dict) -> dict:
@@ -283,7 +318,7 @@ class MailService:
         offset = (page - 1) * page_size
 
         rows = await self.db.fetchall(
-            """SELECT email_id, to_users, subject, sent_at, status
+            """SELECT email_id, from_user, to_users, subject, created_at, sent_at, status, is_spam
                FROM emails
                WHERE from_user = ? AND status IN ('SENT', 'RECALLED')
                ORDER BY sent_at DESC
@@ -294,11 +329,21 @@ class MailService:
         emails = []
         for row in (rows or []):
             d = dict(row)
-            d["to"] = json.loads(d.pop("to_users"))
+            d["to_users"] = json.loads(d["to_users"])
+            d["is_read"] = 1  # 发件箱的邮件默认为已读
             emails.append(d)
+
+        # 统计总数
+        count_row = await self.db.fetchone(
+            """SELECT COUNT(*) as total FROM emails
+               WHERE from_user = ? AND status IN ('SENT', 'RECALLED')""",
+            (from_user,)
+        )
+        total = count_row["total"] if count_row else 0
 
         return build_response(request_id, StatusCode.OK, "发件箱", {
             "emails": emails,
+            "total": total,
             "page": page,
             "page_size": page_size
         })
@@ -360,7 +405,7 @@ class MailService:
         from_user = f"{username}@{domain}"
 
         rows = await self.db.fetchall(
-            """SELECT email_id, to_users, subject, body, created_at
+            """SELECT email_id, from_user, to_users, subject, body, created_at, sent_at, status, is_spam
                FROM emails
                WHERE from_user = ? AND status = 'DRAFT'
                ORDER BY created_at DESC""",
@@ -370,11 +415,12 @@ class MailService:
         drafts = []
         for row in (rows or []):
             d = dict(row)
-            d["to"] = json.loads(d.pop("to_users"))
+            d["to_users"] = json.loads(d["to_users"])
+            d["is_read"] = 1  # 草稿默认为已读
             drafts.append(d)
 
         return build_response(request_id, StatusCode.OK, "草稿箱", {
-            "drafts": drafts
+            "emails": drafts
         })
 
     async def handle_recall_mail(self, msg: dict) -> dict:

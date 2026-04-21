@@ -166,10 +166,10 @@ export async function apiSearchMail(query: string, limit = 20): Promise<SearchRe
   return (resp.payload as unknown as { results: SearchResult[] }).results
 }
 
-export async function apiQuickReply(emailId: string): Promise<string[]> {
+export async function apiQuickReply(emailId: string): Promise<Array<{text: string, auto_to: string, auto_subject: string}>> {
   const resp = await authenticatedSend('QUICK_REPLY', { email_id: emailId })
   if (resp.status !== 200) throw new Error(resp.message)
-  return (resp.payload as unknown as { suggestions: string[] }).suggestions
+  return (resp.payload as unknown as { suggestions: Array<{text: string, auto_to: string, auto_subject: string}> }).suggestions
 }
 
 // ── 群组 API ──

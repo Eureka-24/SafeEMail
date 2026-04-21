@@ -14,7 +14,7 @@ interface QuickReplyBarProps {
 export function QuickReplyBar({ emailId }: QuickReplyBarProps) {
   const navigate = useNavigate()
   const getQuickReplies = useMailStore((s) => s.getQuickReplies)
-  const [suggestions, setSuggestions] = useState<string[]>([])
+  const [suggestions, setSuggestions] = useState<Array<{text: string, auto_to: string, auto_subject: string}>>([])
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -37,15 +37,15 @@ export function QuickReplyBar({ emailId }: QuickReplyBarProps) {
         <ThunderboltOutlined /> 快速回复建议
       </Text>
       <Space wrap>
-        {suggestions.map((text, i) => (
+        {suggestions.map((suggestion, i) => (
           <Button
             key={i}
             size="small"
             onClick={() =>
-              navigate(`/compose?reply=${emailId}&quickReply=${encodeURIComponent(text)}`)
+              navigate(`/compose?reply=${emailId}&quickReply=${encodeURIComponent(suggestion.text)}`)
             }
           >
-            {text}
+            {suggestion.text}
           </Button>
         ))}
       </Space>

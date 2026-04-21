@@ -18,7 +18,7 @@ export function MailListItem({ mail, showField }: MailListItemProps) {
 
   const isUnread = !mail.is_read
   const isRecalled = mail.status === 'RECALLED'
-  const isSpam = mail.is_spam
+  const isSpam = mail.is_spam === 1 || mail.is_spam === true
 
   const personField =
     showField === 'from'

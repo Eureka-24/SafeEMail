@@ -14,6 +14,7 @@ from shared.protocol import (
 from shared.crypto import compute_hmac
 from server.storage.database import Database
 from server.config import ServerConfig
+from server.security.tls import create_client_ssl_context
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,20 @@ class RelayClient:
         self.config = config
         self.shared_secret = config.s2s.shared_secret
         self.server_id = config.domain
+        self._ssl_ctx = self._create_ssl_context()
+
+    def _create_ssl_context(self) -> ssl.SSLContext:
+        """创建 TLS 上下文（用于 S2S 连接）"""
+        tls = self.config.tls
+        if tls.ca_file:
+            # 生产环境：使用 CA 证书验证
+            return create_client_ssl_context(tls.ca_file)
+        else:
+            # 开发环境：不验证证书
+            ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            return ctx
 
     async def deliver_mail(self, target_domain: str, email_data: dict) -> bool:
         """
@@ -92,9 +107,10 @@ class RelayClient:
     async def _send_to_peer(self, peer, request: dict) -> bool:
         """向对端发送请求并等待响应"""
         try:
-            # 建立连接（开发环境不验证证书）
+            # 建立 TLS 连接
             reader, writer = await asyncio.open_connection(
-                peer.host, peer.port
+                peer.host, peer.port,
+                ssl=self._ssl_ctx
             )
 
             # 发送请求

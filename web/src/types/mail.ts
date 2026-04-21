@@ -13,7 +13,7 @@ export interface Mail {
   created_at: string
   sent_at?: string
   is_read: boolean
-  is_spam: boolean
+  is_spam: boolean | number
   spam_score?: number
   recall_signature?: string
 }

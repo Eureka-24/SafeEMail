@@ -30,7 +30,7 @@ interface MailState {
   saveDraft(draft: DraftPayload): Promise<ProtocolResponse>
   recallMail(emailId: string, signature: string): Promise<ProtocolResponse>
   searchMail(query: string): Promise<void>
-  getQuickReplies(emailId: string): Promise<string[]>
+  getQuickReplies(emailId: string): Promise<Array<{text: string, auto_to: string, auto_subject: string}>>
   execAction(emailId: string, actionIndex: number, confirm?: boolean): Promise<ProtocolResponse>
   clearCurrentMail(): void
 }
@@ -91,6 +91,9 @@ export const useMailStore = create<MailState>((set, get) => ({
     try {
       const mail = await apiReadMail(emailId)
       set({ currentMail: mail })
+    } catch (error) {
+      set({ currentMail: null })
+      throw error
     } finally {
       set({ loading: false })
     }

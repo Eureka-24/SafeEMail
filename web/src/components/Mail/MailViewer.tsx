@@ -13,11 +13,12 @@ interface MailViewerProps {
 export function MailViewer({ mail }: MailViewerProps) {
   const toList = Array.isArray(mail.to_users) ? mail.to_users.join(', ') : String(mail.to_users)
   const sanitizedBody = DOMPurify.sanitize(mail.body || '')
+  const isSpam = mail.is_spam === 1 || mail.is_spam === true
 
   return (
     <div>
       {/* 垃圾邮件警告 */}
-      {mail.is_spam && (
+      {isSpam && (
         <Alert
           message="此邮件被检测为垃圾/钓鱼邮件，请谨慎操作"
           type="error"
