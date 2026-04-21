@@ -1,0 +1,38 @@
+server:
+  domain: "beta.local"
+  host: "127.0.0.1"
+  port: 8002
+  data_dir: "./data/beta.local"
+
+tls:
+  cert_file: "./certs/beta.local.crt"
+  key_file: "./certs/beta.local.key"
+  ca_file: "./certs/ca.crt"
+
+s2s:
+  peers:
+    - domain: "alpha.local"
+      host: "127.0.0.1"
+      port: 8001
+  shared_secret: "s2s-shared-secret-key"
+
+security:
+  jwt_secret: "beta-jwt-secret-key"
+  jwt_access_expire_minutes: 30
+  jwt_refresh_expire_days: 7
+  bcrypt_cost: 12
+  max_login_attempts_ip: 5
+  ip_lockout_minutes: 15
+  max_login_attempts_account: 10
+  account_lockout_minutes: 30
+  max_send_per_minute: 10
+  max_send_per_hour: 60
+  max_connections_per_ip: 50
+  max_message_size_mb: 15
+  recall_window_minutes: 5
+
+intelligence:
+  categories: ["工作", "通知", "广告/营销", "社交", "其他"]
+  keyword_top_n: 5
+  fuzzy_max_distance: 2
+  ngram_size: 3
