@@ -21,6 +21,7 @@ from server.mail.group import GroupService
 from server.mail.relay import RelayClient, RelayHandler
 from server.storage.attachment import AttachmentService
 from shared.protocol import Action, StatusCode, build_response
+from server.security.tls import create_server_ssl_context
 
 logger = logging.getLogger(__name__)
 
@@ -142,10 +143,18 @@ class EmailServer:
         # 初始化服务
         await self._init_services()
 
+        # 创建 TLS 上下文（如果配置了证书）
+        ssl_ctx = None
+        tls = self.config.tls
+        if tls.cert_file and tls.key_file and tls.ca_file:
+            ssl_ctx = create_server_ssl_context(tls.cert_file, tls.key_file, tls.ca_file)
+            logger.info("TLS 已启用")
+
         self._server = await asyncio.start_server(
             self.handler.handle_connection,
             self.config.host,
-            self.config.port
+            self.config.port,
+            ssl=ssl_ctx,
         )
 
         addr = self._server.sockets[0].getsockname()

@@ -31,6 +31,10 @@ security:
   max_message_size_mb: 15
   recall_window_minutes: 5
 
+ws_gateway:
+  host: "127.0.0.1"
+  port: 3002
+
 intelligence:
   categories: ["工作", "通知", "广告/营销", "社交", "其他"]
   keyword_top_n: 5
